@@ -111,9 +111,9 @@ jobs:
         shell: bash
         run: |
           for url in \
-            "https://datafeed.dukascopy.com/datafeed/NZDUSD/2014/11/15/10h_ticks.bi5" \
-            "https://datafeed.dukascopy.com/datafeed/EURUSD/2014/11/15/10h_ticks.bi5"; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" "$url")
+            "https://datafeed.dukascopy.com/datafeed/NZDUSD/2024/00/02/00h_ticks.bi5" \
+            "https://datafeed.dukascopy.com/datafeed/EURUSD/2024/00/02/00h_ticks.bi5"; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "$url")
             echo "$code  $url"
           done
 
@@ -123,23 +123,23 @@ jobs:
           set -uo pipefail
           mkdir -p download "$CACHE_DIR"
 
-          MAX_ATTEMPTS=5
+          MAX_ATTEMPTS=8
 
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             echo "::group::تلاش $attempt از $MAX_ATTEMPTS — $SLUG"
 
             set +e
-            npx -y dukascopy-node@latest \
+            npx -y dukascopy-node@1.50.0 \
               -i "$INSTRUMENT" \
               -from "$FROM_DATE" \
               -to "$TO_DATE" \
               -t "$TIMEFRAME" \
               -f csv \
               -v \
-              -bs 2 \
-              -bp 4000 \
-              -r 10 \
-              -rp 15000 \
+              -bs 1 \
+              -bp 10000 \
+              -r 15 \
+              -rp 20000 \
               -re \
               -ch \
               -chpath "$CACHE_DIR" \
@@ -156,8 +156,8 @@ jobs:
             fi
 
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-              WAIT=$(( attempt * attempt * 60 ))
-              echo "::warning::تلاش $attempt شکست خورد (احتمالاً 429). $WAIT ثانیه صبر می‌کنیم..."
+              WAIT=$(( attempt * attempt * 90 ))
+              echo "::warning::تلاش $attempt شکست خورد (empty/503/rate-limit). $WAIT ثانیه صبر می‌کنیم..."
               sleep "$WAIT"
             fi
           done
