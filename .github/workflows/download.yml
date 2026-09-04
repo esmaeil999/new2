@@ -130,8 +130,9 @@ jobs:
               -bp 4000 \
               -r  10 \
               -rp 15000 \
-              -c \
-              -cp "$CACHE_DIR" \
+              -re \
+              -ch \
+              -chpath "$CACHE_DIR" \
               -dir ./download
             STATUS=$?
             set -e
@@ -205,10 +206,6 @@ jobs:
           files: |
             ./${{ env.SLUG }}.zip
             ./${{ env.SLUG }}.zip.part*
-
-      - name: Clean cache dir
-        if: always()
-        run: rm -rf "$CACHE_DIR" || true
 
       - name: Cooldown before next chunk
         if: success()
