@@ -129,7 +129,7 @@ jobs:
             echo "::group::تلاش $attempt از $MAX_ATTEMPTS — $SLUG"
 
             set +e
-            npx -y dukascopy-node \
+            npx -y dukascopy-node@latest \
               -i "$INSTRUMENT" \
               -from "$FROM_DATE" \
               -to "$TO_DATE" \
