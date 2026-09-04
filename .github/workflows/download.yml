@@ -107,6 +107,16 @@ jobs:
             duka-${{ env.INSTRUMENT }}-${{ env.TIMEFRAME }}-${{ env.FROM_DATE }}-${{ env.TO_DATE }}-
             duka-${{ env.INSTRUMENT }}-${{ env.TIMEFRAME }}-${{ env.FROM_DATE }}-
 
+      - name: Probe datafeed URLs (temporary diagnostic)
+        shell: bash
+        run: |
+          for url in \
+            "https://datafeed.dukascopy.com/datafeed/NZDUSD/2014/11/15/10h_ticks.bi5" \
+            "https://datafeed.dukascopy.com/datafeed/EURUSD/2014/11/15/10h_ticks.bi5"; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" "$url")
+            echo "$code  $url"
+          done
+
       - name: Download ticks (retry with exponential backoff)
         shell: bash
         run: |
@@ -120,15 +130,15 @@ jobs:
 
             set +e
             npx -y dukascopy-node \
-              -i  "$INSTRUMENT" \
+              -i "$INSTRUMENT" \
               -from "$FROM_DATE" \
-              -to   "$TO_DATE" \
-              -t  "$TIMEFRAME" \
-              -f  csv \
+              -to "$TO_DATE" \
+              -t "$TIMEFRAME" \
+              -f csv \
               -v \
               -bs 2 \
               -bp 4000 \
-              -r  10 \
+              -r 10 \
               -rp 15000 \
               -re \
               -ch \
@@ -147,7 +157,7 @@ jobs:
 
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
               WAIT=$(( attempt * attempt * 60 ))
-              echo "::warning::تلاش $attempt شکست خورد (احتمالا 429). $WAIT ثانیه صبر می‌کنیم..."
+              echo "::warning::تلاش $attempt شکست خورد (احتمالاً 429). $WAIT ثانیه صبر می‌کنیم..."
               sleep "$WAIT"
             fi
           done
@@ -168,7 +178,7 @@ jobs:
           mv "$CSV" "${SLUG}.csv"
           ls -lh "${SLUG}.csv"
           if [ "$(stat -c%s "${SLUG}.csv")" -lt 1024 ]; then
-            echo "::warning::خروجی تقریبا خالی است (احتمالا بازار در این بازه تعطیل بوده)"
+            echo "::warning::خروجی تقریباً خالی است (احتمالاً بازار در این بازه تعطیل بوده)"
           fi
 
       - name: Zip CSV
