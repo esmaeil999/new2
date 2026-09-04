@@ -1,0 +1,12 @@
+{
+  "name": "dukascopy-tick-downloader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "download": "node src/download.js"
+  },
+  "dependencies": {
+    "dukascopy-node": "^4.4.0"
+  }
+}
