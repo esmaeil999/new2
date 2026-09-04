@@ -107,15 +107,6 @@ jobs:
             duka-${{ env.INSTRUMENT }}-${{ env.TIMEFRAME }}-${{ env.FROM_DATE }}-${{ env.TO_DATE }}-
             duka-${{ env.INSTRUMENT }}-${{ env.TIMEFRAME }}-${{ env.FROM_DATE }}-
 
-      - name: Probe datafeed URLs (temporary diagnostic)
-        shell: bash
-        run: |
-          for url in \
-            "https://datafeed.dukascopy.com/datafeed/NZDUSD/2024/00/02/00h_ticks.bi5" \
-            "https://datafeed.dukascopy.com/datafeed/EURUSD/2024/00/02/00h_ticks.bi5"; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "$url")
-            echo "$code  $url"
-          done
 
       - name: Download ticks (retry with exponential backoff)
         shell: bash
