@@ -14,7 +14,7 @@ on:
       to:
         description: "تاریخ پایان YYYY-MM-DD (انحصاری)"
         required: true
-        default: "2025-01-01"
+        default: "2024-01-10"
       chunk:
         description: "اندازهٔ هر job"
         required: true
