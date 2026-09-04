@@ -1,0 +1,6 @@
+node_modules/
+.dukascopy-cache/
+download/
+data/
+*.zip
+*.csv
