@@ -16,7 +16,13 @@ const priceType = env("PRICE_TYPE", "bid");
 const volumes = env("VOLUMES", "true") === "true";
 const outDir = env("OUT_DIR", "data");
 
-// اگر بازه داده نشود، دیروز (UTC) دانلود می‌شود
+const MAX_ATTEMPTS = Number(env("MAX_ATTEMPTS", "5"));
+const BATCH_SIZE = Number(env("BATCH_SIZE", "2"));
+const BATCH_PAUSE_MS = Number(env("BATCH_PAUSE_MS", "4000"));
+const PAUSE_BETWEEN_INSTRUMENTS_MS = Number(env("INSTRUMENT_PAUSE_MS", "30000"));
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function defaultRange() {
   const to = new Date();
   to.setUTCHours(0, 0, 0, 0);
@@ -34,14 +40,15 @@ const { from, to } =
 
 const iso = (value) => value.toISOString().slice(0, 10);
 
-async function run() {
-  await fs.mkdir(outDir, { recursive: true });
-  console.log(`بازه: ${iso(from)} → ${iso(to)} | تایم‌فریم: ${timeframe}`);
+const isRateLimit = (error) => {
+  const message = String(error?.message || error || "");
+  return message.includes("429") || /too many requests/i.test(message);
+};
 
-  for (const instrument of instruments) {
+async function fetchWithRetry(instrument) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      console.log(`⬇️  دانلود ${instrument} ...`);
-      const data = await getHistoricalRates({
+      return await getHistoricalRates({
         instrument,
         dates: { from, to },
         timeframe,
@@ -49,13 +56,44 @@ async function run() {
         volumes,
         format,
         utcOffset: 0,
-        retryCount: 5,
-        pauseBetweenRetriesMs: 3000,
+        retryCount: 10,
+        pauseBetweenRetriesMs: 15000,
         useCache: true,
         cacheFolderPath: ".dukascopy-cache",
-        batchSize: 5,
-        pauseBetweenBatchesMs: 1500,
+        batchSize: BATCH_SIZE,
+        pauseBetweenBatchesMs: BATCH_PAUSE_MS,
       });
+    } catch (error) {
+      const rateLimited = isRateLimit(error);
+      const last = attempt === MAX_ATTEMPTS;
+
+      console.error(
+        `تلاش ${attempt}/${MAX_ATTEMPTS} برای ${instrument} شکست خورد` +
+          `${rateLimited ? " (429 - rate limit)" : ""}: ${error?.message || error}`
+      );
+
+      if (last) throw error;
+
+      const waitMs = attempt * attempt * 60000;
+      console.error(`${Math.round(waitMs / 1000)} ثانیه صبر می‌کنیم...`);
+      await sleep(waitMs);
+    }
+  }
+}
+
+async function run() {
+  await fs.mkdir(outDir, { recursive: true });
+  console.log(`بازه: ${iso(from)} -> ${iso(to)} | تایم‌فریم: ${timeframe}`);
+
+  for (const [index, instrument] of instruments.entries()) {
+    if (index > 0) {
+      console.log(`${PAUSE_BETWEEN_INSTRUMENTS_MS / 1000} ثانیه وقفه بین نمادها...`);
+      await sleep(PAUSE_BETWEEN_INSTRUMENTS_MS);
+    }
+
+    try {
+      console.log(`دانلود ${instrument} ...`);
+      const data = await fetchWithRetry(instrument);
 
       const ext = format === "csv" ? "csv" : "json";
       const file = path.join(
@@ -66,9 +104,9 @@ async function run() {
       await fs.writeFile(file, body, "utf8");
 
       const bytes = Buffer.byteLength(body, "utf8");
-      console.log(`✅ ${file} (${(bytes / 1024 / 1024).toFixed(2)} MB)`);
+      console.log(`${file} (${(bytes / 1024 / 1024).toFixed(2)} MB)`);
     } catch (error) {
-      console.error(`❌ خطا در ${instrument}:`, error?.message || error);
+      console.error(`خطا در ${instrument}:`, error?.message || error);
       process.exitCode = 1;
     }
   }
