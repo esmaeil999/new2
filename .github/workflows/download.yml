@@ -106,7 +106,15 @@ jobs:
           restore-keys: |
             duka-${{ env.INSTRUMENT }}-${{ env.TIMEFRAME }}-${{ env.FROM_DATE }}-${{ env.TO_DATE }}-
             duka-${{ env.INSTRUMENT }}-${{ env.TIMEFRAME }}-${{ env.FROM_DATE }}-
-
+       - name: Probe datafeed URLs (temporary diagnostic)
+  shell: bash
+  run: |
+    for url in \
+      "https://datafeed.dukascopy.com/datafeed/NZDUSD/2014/11/15/10h_ticks.bi5" \
+      "https://datafeed.dukascopy.com/datafeed/EURUSD/2014/11/15/10h_ticks.bi5"; do
+      code=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" "$url")
+      echo "$code  $url"
+    done
       - name: Download ticks (retry with exponential backoff)
         shell: bash
         run: |
