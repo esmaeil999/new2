@@ -36,15 +36,11 @@ on:
 permissions:
   contents: write
 
-# جلوگیری از اجرای همزمان دو workflow روی همان IP range
 concurrency:
   group: dukascopy-download
   cancel-in-progress: false
 
 jobs:
-  # ==========================================================
-  # 1) ساخت دینامیک بازه‌ها
-  # ==========================================================
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -73,16 +69,13 @@ jobs:
           set -euo pipefail
           python3 scripts/build_matrix.py | tee -a "$GITHUB_OUTPUT"
 
-  # ==========================================================
-  # 2) دانلود هر بازه در job جداگانه — ترتیبی، با backoff
-  # ==========================================================
   download:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
       fail-fast: false
-      max-parallel: 1          # تغییر کلیدی: از 3 به 1 برای جلوگیری از 429
+      max-parallel: 1
       matrix:
         chunk: ${{ fromJson(needs.prepare.outputs.chunks) }}
     env:
@@ -105,7 +98,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost || true
           df -h /
 
-      # کش تا فایل‌های bi5 دانلودشده در اجرای ناموفق قبلی دوباره گرفته نشوند
       - name: Restore Dukascopy cache
         uses: actions/cache@v4
         with:
@@ -147,14 +139,14 @@ jobs:
             echo "::endgroup::"
 
             if [ "$STATUS" -eq 0 ]; then
-              echo "✅ موفق در تلاش $attempt"
+              echo "موفق در تلاش $attempt"
               df -h /
               exit 0
             fi
 
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-              WAIT=$(( attempt * attempt * 60 ))     # 60، 240، 540، 960 ثانیه
-              echo "::warning::تلاش $attempt شکست خورد (احتمالاً 429). $WAIT ثانیه صبر می‌کنیم..."
+              WAIT=$(( attempt * attempt * 60 ))
+              echo "::warning::تلاش $attempt شکست خورد (احتمالا 429). $WAIT ثانیه صبر می‌کنیم..."
               sleep "$WAIT"
             fi
           done
@@ -175,7 +167,7 @@ jobs:
           mv "$CSV" "${SLUG}.csv"
           ls -lh "${SLUG}.csv"
           if [ "$(stat -c%s "${SLUG}.csv")" -lt 1024 ]; then
-            echo "::warning::خروجی تقریباً خالی است (احتمالاً بازار در این بازه تعطیل بوده)"
+            echo "::warning::خروجی تقریبا خالی است (احتمالا بازار در این بازه تعطیل بوده)"
           fi
 
       - name: Zip CSV
@@ -214,19 +206,14 @@ jobs:
             ./${{ env.SLUG }}.zip
             ./${{ env.SLUG }}.zip.part*
 
-      # پاک کردن کش بعد از موفقیت تا حجم کش انبار نشود
       - name: Clean cache dir
         if: always()
         run: rm -rf "$CACHE_DIR" || true
 
-      # فاصله بین chunk‌ها تا سرور نفس بکشد
       - name: Cooldown before next chunk
         if: success()
         run: sleep 45
 
-  # ==========================================================
-  # 3) ارسال ترتیبی به تلگرام
-  # ==========================================================
   notify:
     needs: [prepare, download]
     if: ${{ inputs.telegram && !cancelled() }}
